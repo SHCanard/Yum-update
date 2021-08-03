@@ -1,0 +1,45 @@
+---
+
+- name: Get kpatch-patch name for current kernel
+  shell:
+    cmd: yum search -q -e 0 $(uname -r) 2>/dev/null | awk '$1 ~ /kpatch/{print $1}'
+    warn: no
+  register: KPATCH
+  become: yes
+
+- name: Install this specific version of kpatch-patch
+  yum:
+    name: "{{ KPATCH.stdout }}"
+    state: present
+  become: yes
+  when:
+    - KPATCH is defined
+    - KPATCH != ''
+  
+- name: Gather the package facts
+  ansible.builtin.package_facts:
+    manager: auto
+  
+- name: Update kpatch-patch
+  yum:
+    name: kpatch-patch
+    state: latest
+  register: YUMKPATCH
+  become: yes
+  when: "'kpatch' in ansible_facts.packages"
+
+- name: Send email notification when kpatch-patch was updated
+  mail:
+    host: smtp.domain.com
+    port: 25
+    subtype: html
+    subject: Ansible - Yum update {{ ansible_hostname }} kpatch-patch updated
+    body: '{{ YUMKPATCH.results | replace ("\n", "<br>") }}'
+    to: "{{ recipients }}"
+    from: sender@domain.com
+  when:
+    - YUMKPATCH.changed
+    - YUMKPATCH is defined
+    - recipients is defined
+  tags:
+    - sendmail
