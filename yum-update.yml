@@ -1,0 +1,9 @@
+---
+
+- name: Yum update
+  hosts: "{{ variable_host | default('all') }}"
+  user: root
+
+  roles:
+    - kpatch
+    - security
