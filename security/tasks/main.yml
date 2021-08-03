@@ -1,0 +1,39 @@
+---
+  
+- name: Update security
+  yum:
+    security: yes
+    state: latest
+    exclude: kernel*
+  register: YUMSEC
+  become: yes
+
+- name: Show what was updated
+  debug:
+    var: YUMSEC
+    
+- name: Find processes that have been updated and need to restart
+  shell:
+    cmd: needs-restarting -r
+  register: RESTART
+  become: yes
+  ignore_errors: yes
+  no_log: yes
+  
+- name: Show if restart is needed or not
+  debug:
+    var: RESTART.stdout_lines
+  
+- name: Send email notification when restart is needed
+  mail:
+    host: smtp.domain.com
+    port: 25
+    subject: Ansible - Yum update {{ ansible_hostname }} restart required
+    body: "{{ RESTART.stdout }}"
+    to: "{{ recipients }}"
+    from: sender@domain.com
+  when:
+    - '"Reboot is required" in RESTART.stdout'
+    - recipients is defined
+  tags:
+    - sendmail
